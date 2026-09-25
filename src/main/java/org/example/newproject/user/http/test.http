@@ -2,7 +2,7 @@ POST http://localhost:8080/api/auth/signup
 Content-Type: application/json
 
 {
-  "loginId": "testuser01",
+  "loginId": "testuser02",
   "password": "waypoint1234",
   "nickname": "테스트유저"
 }
