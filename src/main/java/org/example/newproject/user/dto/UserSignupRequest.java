@@ -1,4 +1,4 @@
-package org.example.newproject.user;
+package org.example.newproject.user.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

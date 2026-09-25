@@ -1,6 +1,8 @@
-package org.example.newproject.user;
+package org.example.newproject.user.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.newproject.user.domain.User;
+import org.example.newproject.user.repository.UserRepo;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,6 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(rawPassword));
         user.setNickname(nickname);
 
-        return userRepo.save(user); // 이제 save() 실행 시 안전하게 INSERT문이 나갑니다!
+        return userRepo.save(user);
     }
 }

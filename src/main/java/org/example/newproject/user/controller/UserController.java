@@ -1,7 +1,11 @@
-package org.example.newproject.user;
+package org.example.newproject.user.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.example.newproject.user.domain.User;
+import org.example.newproject.user.service.UserService;
+import org.example.newproject.user.dto.UserSignupRequest;
+import org.example.newproject.user.dto.UserSignupResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,21 +21,19 @@ public class UserController {
 
     @PostMapping("/signup")
     public ResponseEntity<UserSignupResponse> signup(@Valid @RequestBody UserSignupRequest request) {
-        // 1. 회원가입 처리 및 엔티티 저장
+
         User savedUser = userService.create(
                 request.getLoginId(),
                 request.getPassword(),
                 request.getNickname()
         );
 
-        // 2. 응답 DTO 구성
         UserSignupResponse response = UserSignupResponse.builder()
-                .loginId(savedUser.getLoginId()) // PK 필드명 매핑
+                .id(savedUser.getId())
                 .nickname(savedUser.getNickname())
                 .createdAt(savedUser.getCreatedAt())
                 .build();
 
-        // 3. 200 OK 응답 및 JSON 출력
         return ResponseEntity.ok(response);
     }
 
