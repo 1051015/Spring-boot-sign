@@ -1,0 +1,52 @@
+services:
+  - type: web
+    name: spring-boot-sign
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: spring-boot-sign-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: spring-boot-sign-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: spring-boot-sign-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: spring-boot-sign-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: spring-boot-sign-db
+          property: password
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: spring-boot-sign-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+
+  - type: keyvalue
+    name: spring-boot-sign-redis
+    plan: free
+    region: singapore
+    maxmemoryPolicy: noeviction
+    ipAllowList: []
+
+databases:
+  - name: spring-boot-sign-db
+    plan: free
+    region: singapore
+    databaseName: waypoint
+    user: waypoint
