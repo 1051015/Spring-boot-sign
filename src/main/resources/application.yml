@@ -39,3 +39,6 @@ app:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   redis:
     url: ${REDIS_URL:}
+  keep-alive:
+    url: ${RENDER_EXTERNAL_URL:}
+    interval: PT10M
