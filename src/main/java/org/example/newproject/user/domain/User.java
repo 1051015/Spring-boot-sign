@@ -1,18 +1,17 @@
 package org.example.newproject.user.domain;
 
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.OffsetDateTime;
 
 @Getter
-@Setter
 @Entity
 @Table(name = "users")
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User {
 
     @Id
@@ -31,4 +30,12 @@ public class User {
     @CreationTimestamp
     @Column(name = "\"createdAt\"", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
+
+    public static User create(String loginId, String encodedPassword, String nickname) {
+        User user = new User();
+        user.loginId = loginId;
+        user.password = encodedPassword;
+        user.nickname = nickname;
+        return user;
+    }
 }

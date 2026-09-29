@@ -22,18 +22,15 @@ public class RedisConfig {
 
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
-        // 1. Standalone Redis 호스트/포트 설정
         RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
         redisStandaloneConfiguration.setHostName(host);
         redisStandaloneConfiguration.setPort(port);
 
-        // 2. Lettuce 클라이언트 타임아웃 옵션 설정
         LettuceClientConfiguration lettuceClientConfiguration = LettuceClientConfiguration.builder()
                 .commandTimeout(Duration.ofSeconds(3))
                 .shutdownTimeout(Duration.ofMillis(100))
                 .build();
 
-        // 3. LettuceConnectionFactory 생성
         return new LettuceConnectionFactory(redisStandaloneConfiguration, lettuceClientConfiguration);
     }
 

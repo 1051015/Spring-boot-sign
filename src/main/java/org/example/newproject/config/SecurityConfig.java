@@ -26,7 +26,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // 👈 1. CORS 설정 연결
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
