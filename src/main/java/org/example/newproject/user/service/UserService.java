@@ -1,8 +1,10 @@
 package org.example.newproject.user.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.newproject.config.jwt.AccessTokenBlacklist;
 import org.example.newproject.config.jwt.JwtProvider;
 import org.example.newproject.user.domain.User;
+import org.example.newproject.user.dto.MypageResponse;
 import org.example.newproject.user.dto.TokenRefreshResponse;
 import org.example.newproject.user.dto.UserLoginRequest;
 import org.example.newproject.user.dto.UserLoginResponse;
@@ -26,6 +28,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
     private final StringRedisTemplate redisTemplate;
+    private final AccessTokenBlacklist accessTokenBlacklist;
 
     @Transactional
     public UserSignupResponse signup(UserSignupRequest request) {
@@ -70,13 +73,24 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public void logout(String refreshToken) {
+    public MypageResponse getMypage(String loginId) {
+        return userRepo.findByLoginId(loginId)
+                .map(MypageResponse::from)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+    }
+
+    @Transactional(readOnly = true)
+    public void logout(String refreshToken, String accessToken) {
         findUserByStoredRefreshToken(refreshToken)
                 .ifPresent(user -> redisTemplate.delete(refreshKey(user)));
+
+        if (accessToken != null && jwtProvider.validateAccessToken(accessToken)) {
+            accessTokenBlacklist.add(accessToken, jwtProvider.getRemainingValidity(accessToken));
+        }
     }
 
     private Optional<User> findUserByStoredRefreshToken(String refreshToken) {
-        if (refreshToken == null || !jwtProvider.validateToken(refreshToken)) {
+        if (refreshToken == null || !jwtProvider.validateRefreshToken(refreshToken)) {
             return Optional.empty();
         }
 

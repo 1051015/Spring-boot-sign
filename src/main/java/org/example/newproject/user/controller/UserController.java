@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -60,9 +61,10 @@ public class UserController {
 
     @PostMapping("/logout")
     public ResponseEntity<Map<String, String>> logout(
-            @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken
+            @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken,
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorization
     ) {
-        userService.logout(refreshToken);
+        userService.logout(refreshToken, jwtProvider.resolveBearerToken(authorization));
         ResponseCookie cookie = refreshCookie("", Duration.ZERO);
 
         return ResponseEntity.ok()
