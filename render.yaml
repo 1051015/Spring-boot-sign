@@ -5,7 +5,7 @@ services:
     plan: free
     region: singapore
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /health
+    healthCheckPath: /actuator/health/liveness
     autoDeploy: true
     envVars:
       - key: DB_HOST

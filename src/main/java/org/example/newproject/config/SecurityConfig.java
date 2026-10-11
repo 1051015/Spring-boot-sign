@@ -1,12 +1,14 @@
 package org.example.newproject.config;
 
 import jakarta.servlet.http.HttpServletResponse;
+import org.example.newproject.common.exception.ErrorCode;
 import org.example.newproject.config.jwt.AccessTokenBlacklist;
 import org.example.newproject.config.jwt.JwtAuthenticationFilter;
 import org.example.newproject.config.jwt.JwtProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -43,15 +45,18 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/users/**").authenticated()
-                        .anyRequest().permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/auth/signup", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers("/error").permitAll()
+                        .anyRequest().authenticated()
                 )
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.setContentType("application/json");
                             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-                            response.getWriter().write("{\"message\":\"인증이 필요합니다\"}");
+                            response.getWriter().write("{\"code\":\"UNAUTHORIZED\",\"message\":\"" + ErrorCode.UNAUTHORIZED.getMessage() + "\"}");
                         })
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtProvider, accessTokenBlacklist), UsernamePasswordAuthenticationFilter.class);

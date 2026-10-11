@@ -1,6 +1,8 @@
 package org.example.newproject.user.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.newproject.common.exception.BusinessException;
+import org.example.newproject.common.exception.ErrorCode;
 import org.example.newproject.config.jwt.AccessTokenBlacklist;
 import org.example.newproject.config.jwt.JwtProvider;
 import org.example.newproject.user.domain.User;
@@ -32,6 +34,10 @@ public class UserService {
 
     @Transactional
     public UserSignupResponse signup(UserSignupRequest request) {
+        if (userRepo.existsByLoginId(request.getLoginId())) {
+            throw new BusinessException(ErrorCode.DUPLICATE_LOGIN_ID);
+        }
+
         User user = User.create(
                 request.getLoginId(),
                 passwordEncoder.encode(request.getPassword()),
@@ -45,7 +51,7 @@ public class UserService {
     public LoginResult login(UserLoginRequest request) {
         User user = userRepo.findByLoginId(request.getLoginId())
                 .filter(found -> passwordEncoder.matches(request.getPassword(), found.getPassword()))
-                .orElseThrow(() -> new IllegalArgumentException("아이디 또는 비밀번호가 일치하지 않습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
 
         String accessToken = jwtProvider.createAccessToken(user.getLoginId());
         String refreshToken = jwtProvider.createRefreshToken(user.getLoginId());
@@ -64,7 +70,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public TokenRefreshResponse refreshAccessToken(String refreshToken) {
         User user = findUserByStoredRefreshToken(refreshToken)
-                .orElseThrow(() -> new IllegalArgumentException("유효하지 않거나 만료된 Refresh Token입니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN));
 
         return TokenRefreshResponse.builder()
                 .accessToken(jwtProvider.createAccessToken(user.getLoginId()))
@@ -76,7 +82,7 @@ public class UserService {
     public MypageResponse getMypage(String loginId) {
         return userRepo.findByLoginId(loginId)
                 .map(MypageResponse::from)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
     }
 
     @Transactional(readOnly = true)
