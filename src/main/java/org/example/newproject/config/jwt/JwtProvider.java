@@ -6,6 +6,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import org.example.newproject.user.session.DeviceType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +21,8 @@ public class JwtProvider {
     private static final Duration REFRESH_TOKEN_VALIDITY = Duration.ofDays(14);
 
     private static final String TOKEN_TYPE_CLAIM = "type";
+    private static final String SESSION_ID_CLAIM = "sid";
+    private static final String DEVICE_TYPE_CLAIM = "deviceType";
     private static final String ACCESS_TOKEN_TYPE = "access";
     private static final String REFRESH_TOKEN_TYPE = "refresh";
     private static final String BEARER_PREFIX = "Bearer ";
@@ -30,12 +33,12 @@ public class JwtProvider {
         this.secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
     }
 
-    public String createAccessToken(String loginId) {
-        return createToken(loginId, ACCESS_TOKEN_TYPE, ACCESS_TOKEN_VALIDITY);
+    public String createAccessToken(String loginId, String sessionId, DeviceType deviceType) {
+        return createToken(loginId, sessionId, deviceType, ACCESS_TOKEN_TYPE, ACCESS_TOKEN_VALIDITY);
     }
 
-    public String createRefreshToken(String loginId) {
-        return createToken(loginId, REFRESH_TOKEN_TYPE, REFRESH_TOKEN_VALIDITY);
+    public String createRefreshToken(String loginId, String sessionId, DeviceType deviceType) {
+        return createToken(loginId, sessionId, deviceType, REFRESH_TOKEN_TYPE, REFRESH_TOKEN_VALIDITY);
     }
 
     public boolean validateAccessToken(String token) {
@@ -48,6 +51,15 @@ public class JwtProvider {
 
     public String getLoginId(String token) {
         return parseClaims(token).getSubject();
+    }
+
+    public String getSessionId(String token) {
+        return parseClaims(token).get(SESSION_ID_CLAIM, String.class);
+    }
+
+    public DeviceType getDeviceType(String token) {
+        String deviceType = parseClaims(token).get(DEVICE_TYPE_CLAIM, String.class);
+        return deviceType == null ? null : DeviceType.valueOf(deviceType);
     }
 
     public Duration getRemainingValidity(String token) {
@@ -70,12 +82,14 @@ public class JwtProvider {
         return REFRESH_TOKEN_VALIDITY;
     }
 
-    private String createToken(String loginId, String type, Duration validity) {
+    private String createToken(String loginId, String sessionId, DeviceType deviceType, String type, Duration validity) {
         Date now = new Date();
 
         return Jwts.builder()
                 .setSubject(loginId)
                 .claim(TOKEN_TYPE_CLAIM, type)
+                .claim(SESSION_ID_CLAIM, sessionId)
+                .claim(DEVICE_TYPE_CLAIM, deviceType.name())
                 .setIssuedAt(now)
                 .setExpiration(new Date(now.getTime() + validity.toMillis()))
                 .signWith(secretKey, SignatureAlgorithm.HS256)

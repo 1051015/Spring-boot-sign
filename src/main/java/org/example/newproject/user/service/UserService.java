@@ -13,23 +13,23 @@ import org.example.newproject.user.dto.UserLoginResponse;
 import org.example.newproject.user.dto.UserSignupRequest;
 import org.example.newproject.user.dto.UserSignupResponse;
 import org.example.newproject.user.repository.UserRepo;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.example.newproject.user.session.DeviceType;
+import org.example.newproject.user.session.SessionStore;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @RequiredArgsConstructor
 @Service
 public class UserService {
 
-    private static final String REFRESH_KEY_PREFIX = "refresh:";
-
     private final UserRepo userRepo;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
-    private final StringRedisTemplate redisTemplate;
+    private final SessionStore sessionStore;
     private final AccessTokenBlacklist accessTokenBlacklist;
 
     @Transactional
@@ -48,15 +48,17 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public LoginResult login(UserLoginRequest request) {
+    public LoginResult login(UserLoginRequest request, String userAgent) {
         User user = userRepo.findByLoginId(request.getLoginId())
                 .filter(found -> passwordEncoder.matches(request.getPassword(), found.getPassword()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
 
-        String accessToken = jwtProvider.createAccessToken(user.getLoginId());
-        String refreshToken = jwtProvider.createRefreshToken(user.getLoginId());
+        String sessionId = UUID.randomUUID().toString();
+        String accessToken = jwtProvider.createAccessToken(user.getLoginId(), sessionId, request.getDeviceType());
+        String refreshToken = jwtProvider.createRefreshToken(user.getLoginId(), sessionId, request.getDeviceType());
 
-        redisTemplate.opsForValue().set(refreshKey(user), refreshToken, jwtProvider.getRefreshTokenValidity());
+        sessionStore.save(user.getId(), sessionId, refreshToken, request.getDeviceType(), userAgent,
+                jwtProvider.getRefreshTokenValidity());
 
         UserLoginResponse response = UserLoginResponse.builder()
                 .accessToken(accessToken)
@@ -69,44 +71,57 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public TokenRefreshResponse refreshAccessToken(String refreshToken) {
-        User user = findUserByStoredRefreshToken(refreshToken)
+        ActiveSession session = findActiveSession(refreshToken)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN));
 
+        sessionStore.touch(session.user().getId(), session.sessionId());
+
         return TokenRefreshResponse.builder()
-                .accessToken(jwtProvider.createAccessToken(user.getLoginId()))
+                .accessToken(jwtProvider.createAccessToken(
+                        session.user().getLoginId(), session.sessionId(), session.deviceType()))
                 .expiresIn(jwtProvider.getAccessTokenExpiresInSeconds())
                 .build();
     }
 
     @Transactional(readOnly = true)
     public MypageResponse getMypage(String loginId) {
-        return userRepo.findByLoginId(loginId)
-                .map(MypageResponse::from)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        return MypageResponse.from(findUser(loginId));
     }
 
     @Transactional(readOnly = true)
     public void logout(String refreshToken, String accessToken) {
-        findUserByStoredRefreshToken(refreshToken)
-                .ifPresent(user -> redisTemplate.delete(refreshKey(user)));
+        findActiveSession(refreshToken)
+                .ifPresent(session -> sessionStore.delete(session.user().getId(), session.sessionId()));
 
         if (accessToken != null && jwtProvider.validateAccessToken(accessToken)) {
             accessTokenBlacklist.add(accessToken, jwtProvider.getRemainingValidity(accessToken));
         }
     }
 
-    private Optional<User> findUserByStoredRefreshToken(String refreshToken) {
+    private Optional<ActiveSession> findActiveSession(String refreshToken) {
         if (refreshToken == null || !jwtProvider.validateRefreshToken(refreshToken)) {
             return Optional.empty();
         }
 
+        String sessionId = jwtProvider.getSessionId(refreshToken);
+        DeviceType deviceType = jwtProvider.getDeviceType(refreshToken);
+        if (sessionId == null || deviceType == null) {
+            return Optional.empty();
+        }
+
         return userRepo.findByLoginId(jwtProvider.getLoginId(refreshToken))
-                .filter(user -> refreshToken.equals(redisTemplate.opsForValue().get(refreshKey(user))));
+                .filter(user -> sessionStore.findRefreshToken(user.getId(), sessionId)
+                        .filter(refreshToken::equals)
+                        .isPresent())
+                .map(user -> new ActiveSession(user, sessionId, deviceType));
     }
 
-    private String refreshKey(User user) {
-        return REFRESH_KEY_PREFIX + user.getId();
+    private User findUser(String loginId) {
+        return userRepo.findByLoginId(loginId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
     }
+
+    private record ActiveSession(User user, String sessionId, DeviceType deviceType) {}
 
     public record LoginResult(UserLoginResponse response, String refreshToken) {}
 }

@@ -1,6 +1,7 @@
 package org.example.newproject.user.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.example.newproject.config.jwt.LoginUser;
 import org.example.newproject.user.dto.MypageResponse;
 import org.example.newproject.user.service.UserService;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +18,7 @@ public class MypageController {
     private final UserService userService;
 
     @GetMapping("/me")
-    public ResponseEntity<MypageResponse> mypage(@AuthenticationPrincipal String loginId) {
-        return ResponseEntity.ok(userService.getMypage(loginId));
+    public ResponseEntity<MypageResponse> mypage(@AuthenticationPrincipal LoginUser loginUser) {
+        return ResponseEntity.ok(userService.getMypage(loginUser.loginId()));
     }
 }

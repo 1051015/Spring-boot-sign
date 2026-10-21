@@ -43,8 +43,11 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<UserLoginResponse> login(@Valid @RequestBody UserLoginRequest request) {
-        UserService.LoginResult result = userService.login(request);
+    public ResponseEntity<UserLoginResponse> login(
+            @Valid @RequestBody UserLoginRequest request,
+            @RequestHeader(name = HttpHeaders.USER_AGENT, required = false) String userAgent
+    ) {
+        UserService.LoginResult result = userService.login(request, userAgent);
         ResponseCookie cookie = refreshCookie(result.refreshToken(), jwtProvider.getRefreshTokenValidity());
 
         return ResponseEntity.ok()
