@@ -1,14 +1,11 @@
 package org.example.newproject.config.jwt;
 
 import lombok.RequiredArgsConstructor;
+import org.example.newproject.common.util.TokenHasher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.util.HexFormat;
 
 @Component
 @RequiredArgsConstructor
@@ -30,11 +27,6 @@ public class AccessTokenBlacklist {
     }
 
     private String key(String accessToken) {
-        try {
-            byte[] hash = MessageDigest.getInstance("SHA-256").digest(accessToken.getBytes(StandardCharsets.UTF_8));
-            return KEY_PREFIX + HexFormat.of().formatHex(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
+        return KEY_PREFIX + TokenHasher.sha256(accessToken);
     }
 }

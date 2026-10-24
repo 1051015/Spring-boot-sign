@@ -74,8 +74,6 @@ public class UserService {
         ActiveSession session = findActiveSession(refreshToken)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN));
 
-        sessionStore.touch(session.user().getId(), session.sessionId());
-
         return TokenRefreshResponse.builder()
                 .accessToken(jwtProvider.createAccessToken(
                         session.user().getLoginId(), session.sessionId(), session.deviceType()))
@@ -110,9 +108,7 @@ public class UserService {
         }
 
         return userRepo.findByLoginId(jwtProvider.getLoginId(refreshToken))
-                .filter(user -> sessionStore.findRefreshToken(user.getId(), sessionId)
-                        .filter(refreshToken::equals)
-                        .isPresent())
+                .filter(user -> sessionStore.matchesRefreshToken(user.getId(), sessionId, refreshToken))
                 .map(user -> new ActiveSession(user, sessionId, deviceType));
     }
 

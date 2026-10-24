@@ -1,6 +1,7 @@
 package org.example.newproject.user.session;
 
 import lombok.RequiredArgsConstructor;
+import org.example.newproject.common.util.TokenHasher;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -9,42 +10,35 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
-import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
 public class SessionStore {
 
-    private static final String REFRESH_TOKEN = "refreshToken";
+    private static final String REFRESH_TOKEN_HASH = "refreshTokenHash";
     private static final String DEVICE_TYPE = "deviceType";
     private static final String USER_AGENT = "userAgent";
     private static final String CREATED_AT = "createdAt";
-    private static final String LAST_USED_AT = "lastUsedAt";
     private static final int USER_AGENT_MAX_LENGTH = 200;
 
     private final StringRedisTemplate redisTemplate;
 
     public void save(Long userId, String sessionId, String refreshToken, DeviceType deviceType,
                      String userAgent, Duration ttl) {
-        String now = now();
         String key = sessionKey(userId, sessionId);
 
         hash().putAll(key, Map.of(
-                REFRESH_TOKEN, refreshToken,
+                REFRESH_TOKEN_HASH, TokenHasher.sha256(refreshToken),
                 DEVICE_TYPE, deviceType.name(),
                 USER_AGENT, truncate(userAgent),
-                CREATED_AT, now,
-                LAST_USED_AT, now
+                CREATED_AT, Instant.now().truncatedTo(ChronoUnit.SECONDS).toString()
         ));
         redisTemplate.expire(key, ttl);
     }
 
-    public Optional<String> findRefreshToken(Long userId, String sessionId) {
-        return Optional.ofNullable(hash().get(sessionKey(userId, sessionId), REFRESH_TOKEN));
-    }
-
-    public void touch(Long userId, String sessionId) {
-        hash().put(sessionKey(userId, sessionId), LAST_USED_AT, now());
+    public boolean matchesRefreshToken(Long userId, String sessionId, String refreshToken) {
+        String storedHash = hash().get(sessionKey(userId, sessionId), REFRESH_TOKEN_HASH);
+        return TokenHasher.matches(refreshToken, storedHash);
     }
 
     public void delete(Long userId, String sessionId) {
@@ -57,10 +51,6 @@ public class SessionStore {
 
     private String sessionKey(Long userId, String sessionId) {
         return "session:" + userId + ":" + sessionId;
-    }
-
-    private String now() {
-        return Instant.now().truncatedTo(ChronoUnit.SECONDS).toString();
     }
 
     private String truncate(String userAgent) {
